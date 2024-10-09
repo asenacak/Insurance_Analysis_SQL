@@ -24,6 +24,7 @@ SELECT
   COUNT(*) AS count,
   AVG(curr_ann_prem) AS annual_premium
 FROM customer
+WHERE curr_ann_prem > 0
 GROUP BY age_groups
 ORDER BY annual_premium;
 
@@ -38,6 +39,7 @@ SELECT
   AVG(c.curr_ann_prem) AS mean_annual_premium
 FROM demographic d
 INNER JOIN customer c ON d.individual_id = c.individual_id
+WHERE c.curr_ann_prem > 0
 GROUP BY degree;
 
 -- 3) Having Children vs Insurance Premium
@@ -51,6 +53,7 @@ SELECT
   AVG(c.curr_ann_prem) AS annual_premium
 FROM demographic d
 INNER JOIN customer c ON d.individual_id = c.individual_id
+WHERE c.curr_ann_prem > 0
 GROUP BY children;
 
 -- 4) Marital Status vs Insurance Premium
@@ -67,6 +70,7 @@ SELECT
 FROM demographic d
 INNER JOIN customer c ON d.individual_id = c.individual_id
 WHERE d.marital IS NOT NULL
+  AND c.curr_ann_prem > 0
 GROUP BY d.marital;
 
 -- 5) Being a Home Owner vs Insurance Premium
@@ -80,6 +84,7 @@ SELECT
   AVG(c.curr_ann_prem) AS annual_premium
 FROM demographic d
 INNER JOIN customer c ON d.individual_id = c.individual_id
+WHERE c.curr_ann_prem > 0
 GROUP BY d.home_owner;
 
 -- 6) Income Level vs Insurance Premium
@@ -107,5 +112,51 @@ SELECT
   AVG(c.curr_ann_prem) AS annual_premium
 FROM demographic d
 INNER JOIN customer c ON d.individual_id = c.individual_id
+WHERE c.curr_ann_prem > 0
 GROUP BY income_groups
 ORDER BY annual_premium;
+
+-- 7) Analyze how insurance premiums vary according to different tenure groups
+SELECT 
+ CASE
+   WHEN days_tenure <= 365 THEN 'Less than 1 year'
+   WHEN days_tenure BETWEEN 366 AND 1095 THEN '1-3 years'
+   WHEN days_tenure BETWEEN 1096 AND 1825 THEN '3-5 years'
+   ELSE 'More than 5 years'
+ END AS tenure_groups,
+ COUNT(*) AS count,
+ AVG(curr_ann_prem) AS annual_premium
+FROM customer
+WHERE curr_ann_prem > 0
+GROUP BY tenure_groups
+ORDER BY annual_premium DESC;
+
+-- 8) Analyze monthly change in customer registrations
+-- This query calculates the percentage change in customer registrations from one month to the next.
+SELECT 
+  start_date,
+  number_customer,
+  ROUND(((number_customer - LAG(number_customer) OVER (ORDER BY start_date))::NUMERIC/ LAG(number_customer) OVER (ORDER BY start_date))*100, 2) AS customer_change
+FROM (
+  SELECT 
+    TO_CHAR(cust_orig_date, 'YYYY-MM') AS start_date,
+    COUNT(individual_id) AS number_customer
+  FROM customer
+  WHERE curr_ann_prem > 0
+  GROUP BY start_date
+) AS monthly_customers;
+
+-- 9) Analyze annual change in customer registrations
+-- This query calculates the percentage change in customer registrations from one year to the next.
+SELECT 
+  year,
+  number_customer,
+  ROUND(((number_customer - LAG(number_customer) OVER (ORDER BY year))::NUMERIC / LAG(number_customer) OVER (ORDER BY year)) * 100, 2) AS customer_change
+FROM (
+  SELECT 
+    TO_CHAR(cust_orig_date, 'YYYY') AS year,
+    COUNT(individual_id) AS number_customer
+  FROM customer
+  WHERE curr_ann_prem > 0
+  GROUP BY year
+) AS annual_customers;
