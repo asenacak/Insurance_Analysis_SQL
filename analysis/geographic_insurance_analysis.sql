@@ -114,3 +114,39 @@ WHERE a.county IS NOT NULL
 GROUP BY a.county
 ORDER BY avg_tenure;
 
+-- 9) Analyze the number of customers per city per year
+SELECT
+  EXTRACT(YEAR FROM c.cust_orig_date) AS year,
+  a.city,
+  COUNT(c.individual_id) as number_customer
+FROM customer c
+INNER JOIN address a ON c.address_id = a.address_id 
+GROUP BY year, city;
+
+-- 10) Find the city with the highest number of customers each year
+WITH customer_count AS(
+ -- Step 1: Calculate the total number of customers per city per year
+  SELECT
+    EXTRACT(YEAR FROM c.cust_orig_date) AS year,
+    a.city,
+    COUNT(c.individual_id) as number_customer
+  FROM customer c
+  INNER JOIN address a ON c.address_id = a.address_id 
+  GROUP BY year, city
+),
+ranked_cities AS(
+ -- Step 2: Rank cities by customer count for each year
+  SELECT
+    year,
+	city,
+	number_customer,
+	ROW_NUMBER() OVER (PARTITION BY year ORDER BY number_customer DESC) AS rank
+  FROM customer_count	
+)
+-- Step 3: Select the top-ranked city for each year
+SELECT 
+   year,
+   city,
+   number_customer
+FROM ranked_cities
+WHERE rank = 1;
